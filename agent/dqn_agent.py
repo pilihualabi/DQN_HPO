@@ -42,11 +42,15 @@ class DQNNetwork(nn.Module):
         self.out = nn.Linear(fc_layer_sizes[-1], output_size)
 
     def forward(self, x):
+        print(f"输入尺寸: {x.size()}")
         # 应用卷积层和激活函数
         for conv_layer in self.conv_layers:
             x = F.relu(conv_layer(x))
+            print(f"卷积层输出尺寸: {x.size()}")
             x = F.max_pool2d(x, kernel_size=2)  # 示例使用2x2的最大池化
+            print(f"池化层输出尺寸: {x.size()}")
 
+        print(f"卷积层和池化层输出尺寸: {x.size()}")
         # 准备进入全连接层
         x = torch.flatten(x, 1)  # 展平除批次维度外的所有维度
 
@@ -66,12 +70,14 @@ class DQNNetwork(nn.Module):
         input = torch.autograd.Variable(torch.rand(bs, *shape))
         output_feat = self._forward_features(input)
         n_size = output_feat.data.view(bs, -1).size(1)
+        print(f"全连接层输入尺寸: {n_size}")
         return n_size
 
     def _forward_features(self, x):
         for conv_layer in self.conv_layers:
             x = F.relu(conv_layer(x))
             x = F.max_pool2d(x, kernel_size=2)
+            print(f"卷积层输出尺寸: {x.size()}")
         return x
 
 
@@ -88,6 +94,7 @@ class DQNAgent:
         self.epsilon_decay = epsilon_decay
         self.batch_size = batch_size
         self.momentum = momentum
+        self.train_steps = 0  # 初始化训练次数为0
         self.model = DQNNetwork(input_size=(1, 28, 28),  # 假定的输入尺寸，需要根据实际情况调整
                                 output_size=action_size,
                                 conv_kernel_sizes=conv_kernel_sizes,
@@ -96,6 +103,8 @@ class DQNAgent:
         self.optimizer = optim.SGD(self.model.parameters(), lr=self.learning_rate, momentum=self.momentum)
         self.scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, step_size=100, gamma=0.1)
         # print(f"DQNNetwork output size: {self.model.out.out_features}")
+        self.best_accuracy = 0  # 初始化最佳准确率
+        self.best_hyperparams = {}
 
     #remember方法用于存储经验
     def remember(self, state, action, reward, next_state, done):
@@ -103,6 +112,7 @@ class DQNAgent:
 
     #act方法用于选择动作
     def act(self, state):
+        self.train_steps += 1
         if np.random.rand() <= self.epsilon:
             print_and_save(f"Random action range: 0 to {self.action_size - 1}", file_path)
             # print(f"Random action range: 0 to {self.action_size - 1}")
@@ -154,55 +164,55 @@ class DQNAgent:
         else:
             print("epsilon已经低于最小值，不再进行衰减")
         print("当前epsilon值:", self.epsilon)
-        #
-        # if self.epsilon > self.epsilon_min:
-        #     self.epsilon *= self.epsilon_decay
 
     # load和save方法用于加载和保存模型
-    def load(self, name):
-        self.model.load_state_dict(torch.load(name))
-
-    def save(self, name):
-        # 确保目录存在
-        save_dir = os.path.dirname(name)
-        if not os.path.exists(save_dir):
-            os.makedirs(save_dir)
-
-        torch.save(self.model.state_dict(), name)
-
-    # def load(self, filepath):
-    #     """
-    #     加载模型状态、训练轮次、最佳准确率、优化器状态以及训练历史记录。
-    #     """
-    #     if os.path.isfile(filepath):
-    #         checkpoint = torch.load(filepath)
-    #         self.model.load_state_dict(checkpoint['state_dict'])
+    # def load(self, name):
+    #     self.model.load_state_dict(torch.load(name))
     #
-    #         # 加载训练历史记录
-    #         training_history = checkpoint.get('training_history', None)
-    #
-    #         return checkpoint['epoch'], checkpoint['best_accuracy'], checkpoint['optimizer'], training_history
-    #     else:
-    #         print(f"No checkpoint found at '{filepath}'")
-    #         return None, None, None, None
-    #
-    # def save(self, filepath, epoch, best_accuracy, optimizer, training_history):
-    #     """
-    #     保存模型状态、训练轮次、最佳准确率、优化器状态以及训练历史记录。
-    #     training_history: 一个字典，包含了训练过程中的统计信息，如每个epoch的损失和准确率。
-    #     """
-    #     save_dir = os.path.dirname(filepath)
+    # def save(self, name):
+    #     # 确保目录存在
+    #     save_dir = os.path.dirname(name)
     #     if not os.path.exists(save_dir):
     #         os.makedirs(save_dir)
     #
-    #     state = {
-    #         'epoch': epoch,
-    #         'state_dict': self.model.state_dict(),
-    #         'best_accuracy': best_accuracy,
-    #         'optimizer': optimizer.state_dict(),
-    #         'training_history': training_history,  # 添加训练历史记录
-    #     }
-    #
-    #     torch.save(state, filepath)
+    #     torch.save(self.model.state_dict(), name)
 
+    def save(self, filepath):
+        save_dir = os.path.dirname(filepath)
+        if not os.path.exists(save_dir):
+            os.makedirs(save_dir)
+
+        state = {
+            'state_dict': self.model.state_dict(),
+            'optimizer': self.optimizer.state_dict(),
+            'scheduler': self.scheduler.state_dict(),
+            'memory': self.memory,
+            'train_steps': self.train_steps,
+            'episode_count': self.episode_count,
+            'best_accuracy': self.best_accuracy,  # 保存最佳准确率
+            'best_hyperparams': self.best_hyperparams  # 保存最佳模型状态
+        }
+
+        print(f"保存的episode_count: {self.episode_count}")
+        torch.save(state, filepath)
+        print(f"模型及训练状态已保存到{filepath}")
+
+    def load(self, filepath):
+        if os.path.isfile(filepath):
+            checkpoint = torch.load(filepath)
+
+            self.model.load_state_dict(checkpoint['state_dict'])
+            self.optimizer.load_state_dict(checkpoint['optimizer'])
+            self.scheduler.load_state_dict(checkpoint['scheduler'])
+            self.memory = checkpoint['memory']
+            self.train_steps = checkpoint.get('train_steps', 0)
+            self.episode_count = checkpoint.get('episode_count', 0)  # 加载episode_count
+            self.best_accuracy = checkpoint.get('best_accuracy', 0)
+            self.best_hyperparams = checkpoint.get('best_hyperparams', {})
+
+            print(f"模型从episode {self.episode_count} 加载成功。")
+            return self.episode_count, self.best_accuracy, self.best_hyperparams
+        else:
+            print(f"文件 {filepath} 不存在.")
+            return 0, 0, {}
 

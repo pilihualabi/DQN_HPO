@@ -14,17 +14,22 @@ def print_and_save(text, file_path):
     with open(file_path, "a") as file:
         file.write(text + "\n")
 
-file_path = "dqn_cnn_tuning_log.txt"
+file_path = "dqn_cnn_tuning_log1.txt"
 def train_dqn(episode_count):
     n_actions = len(CONV_KERNEL_SIZES) * len(DROPOUT_RATES) * len(np.linspace(0.0001, 0.01, num=10)) * len([128, 256, 512, 1024]) * len([0.3, 0.4, 0.5, 0.6, 0.7]) * len([16, 32, 64, 128]) * len(np.linspace(0.5, 1, num=5))
     state_size = 6  # 假设包括kernel size index, fc_layer_size index, dropout rate index, batch size index, learning rate index, and momentum index
     agent = DQNAgent(state_size, n_actions)
+    start_episode, start_accuracy, start_hyperparams = agent.load("save1/dqn_cnn_tuning_0.pt")  # 替换成你之前保存的模型路径
+    # agent.load("save1/dqn_cnn_tuning_5.pt")  # 替换成你之前保存的模型路径
     env = CNNTuningEnvironment()
+    env.best_accuracy = start_accuracy
+    env.best_hyperparams = start_hyperparams
 
     # batch_size = 32
 
-    for e in range(episode_count):
+    for e in range(start_episode, episode_count):
         agent.episode_count = e
+        # print(f"当前episode_count:{agent.episode_count}")
         env.iteration_count = 0  # 重置迭代计数
         state = env.reset()  # 确保这里返回的是正确形状的状态
         for time in range(300):  # 每个episode的时间步数
@@ -42,6 +47,8 @@ def train_dqn(episode_count):
             print_and_save(f"最佳准确率: {env.best_accuracy}", file_path)
             print_and_save(f"最佳模型状态: {env.best_hyperparams}\n", file_path)
             # print(env.best_hyperparams)
+            agent.best_accuracy = env.best_accuracy
+            agent.best_hyperparams = env.best_hyperparams
 
             accuracy_per_episode.append(env.best_accuracy)  # 将最佳准确率添加到列表中
 
@@ -55,12 +62,13 @@ def train_dqn(episode_count):
                 # print("_____________________________________________________________")
                 # print("episode: {}/{}, score: {}, epsilon: {:.2}".format(e, episode_count, time, agent.epsilon))
                 break
+            print("len(agent.memory):", len(agent.memory))
             if len(agent.memory) > agent.batch_size:
                 print_and_save("调用replay方法", file_path)
                 # print("调用replay方法")
                 agent.replay()
-        if e % 5 == 0:
-            agent.save("./save/dqn_cnn_tuning_{}.pt".format(e))
+        if e % 2 == 0:
+            agent.save("./save1/dqn_cnn_tuning_{}.pt".format(e))
 
 if __name__ == "__main__":
     episode_count = 100
