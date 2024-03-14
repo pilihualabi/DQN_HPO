@@ -10,13 +10,13 @@ class CNNModel(nn.Module):
         self.conv1 = nn.Conv2d(input_size[0], 32, kernel_size=conv_kernel_sizes[0])
         self.pool = nn.MaxPool2d(kernel_size=2, stride=2)
         self.conv2 = nn.Conv2d(32, 64, kernel_size=conv_kernel_sizes[1])
-
-        print(f"Conv1: {self.conv1}")
-        print(f"Pool: {self.pool}")
-        print(f"Conv2: {self.conv2}")
+        #
+        # print(f"Conv1: {self.conv1}")
+        # print(f"Pool: {self.pool}")
+        # print(f"Conv2: {self.conv2}")
 
         self.fc_input_dim = self._compute_fc_input_dim(input_size, conv_kernel_sizes)
-        print(f"Calculated fc_input_dim: {self.fc_input_dim}")
+        # print(f"Calculated fc_input_dim: {self.fc_input_dim}")
 
         self.fc1 = nn.Linear(self.fc_input_dim, fc_layer_sizes[0])
         self.dropout = nn.Dropout(dropout_rates[0])
@@ -35,14 +35,14 @@ class CNNModel(nn.Module):
 
     def _compute_fc_input_dim(self, input_size, conv_kernel_sizess):
         with torch.no_grad():
-            print("Computing fc_input_dim")
+            # print("Computing fc_input_dim")
             x = torch.ones((1, *input_size))  # 创建一个虚拟的输入张量
             x = F.relu(self.conv1(x))
             x = self.pool(x)
-            print(f"After Conv1 and Pool shape: {x.size()}")
+            # print(f"After Conv1 and Pool shape: {x.size()}")
             x = F.relu(self.conv2(x))
             x = self.pool(x)
-            print(f"After Conv2 and Pool shape: {x.size()}")
+            # print(f"After Conv2 and Pool shape: {x.size()}")
             fc_input_dim = x.size(1) * x.size(2) * x.size(3)  # 计算全连接层输入数据的维度
             return fc_input_dim
 

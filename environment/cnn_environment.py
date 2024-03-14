@@ -12,7 +12,7 @@ from utils.hyperparameters import CONV_KERNEL_SIZES, DROPOUT_RATES, LEARNING_RAT
 best_accuracy_global = 0
 best_hyperparams_global = {}
 
-file_path = "dqn_cnn_tuning_log.txt"
+file_path = "dqn_cnn_tuning_log2.txt"
 
 def print_and_save(text, file_path):
     print(text)
@@ -53,8 +53,8 @@ class CNNTuningEnvironment:
         # 初始化上一次的性能
         self.last_performance = None  # 上一次的性能初始化为None
         self.last_hyperparams = None
-        self.max_iterations = 50  # 最大迭代次
-        self.iteration_count = 0  # 初始化迭代计数为0
+        # self.max_iterations = 50  # 最大迭代次
+        # self.iteration_count = 0  # 初始化迭代计数为0
         self.best_accuracy = 0  # 初始化最佳准确率
         self.best_hyperparams = {}  # 初始化最佳超参数
 
@@ -69,6 +69,7 @@ class CNNTuningEnvironment:
 
         total_actions = num_kernel_options * num_fc_layer_options * num_dropout_options * num_batch_size_options * num_lr_options * num_momentum_options
 
+        # print(f"step方法中：action: {action}, total_actions: {total_actions}")
         # 确保动作在有效范围内
         action = max(0, min(action, total_actions - 1))
 
@@ -90,12 +91,13 @@ class CNNTuningEnvironment:
         batch_size = self.batch_sizes[batch_size_idx]
         learning_rate = self.learning_rates[lr_idx]
         momentum_rate = self.momentums[momentum_idx]
+        # print(f"step方法中：conv_kernel_size: {conv_kernel_size}, fc_layer_size: {fc_layer_size}, dropout_rate: {dropout_rate}, batch_size: {batch_size}, learning_rate: {learning_rate}, momentum_rate: {momentum_rate}")
 
-        # 使用解码的超参数值配置和训练模型...
-        current_performance_tuple = self.train_and_evaluate_model(conv_kernel_size, fc_layer_size, dropout_rate, batch_size, learning_rate, momentum_rate)
-        current_performance = current_performance_tuple[0]
-        best_accuracy_global = current_performance_tuple[1]
-        best_hyperparams_global = current_performance_tuple[2]
+        # 使用解码的超参数值配置和训练模型
+        current_performance = self.train_and_evaluate_model(conv_kernel_size, fc_layer_size, dropout_rate, batch_size, learning_rate, momentum_rate)
+        # current_performance = current_performance_tuple[0]
+        # best_accuracy_global = current_performance_tuple[1]
+        # best_hyperparams_global = current_performance_tuple[2]
 
         # 如果是第一次运行，没有之前的性能可比较，可以选择给予中性或稍微正向的初始奖励
         if self.last_performance is None:
@@ -105,12 +107,12 @@ class CNNTuningEnvironment:
 
 
         # 更新迭代次数
-        self.iteration_count += 1
+        # self.iteration_count += 1
 
-        print_and_save(f"iteration_count: {self.iteration_count}", file_path)
+        # print_and_save(f"iteration_count: {self.iteration_count}", file_path)
         # 判断是否达到终止条件，如果当前性能低于上一次的0.99倍，或者迭代次数达到最大值，则结束
-        if self.last_performance is not None and (
-                current_performance < self.last_performance * 0.97 or self.iteration_count >= self.max_iterations):
+        # or self.iteration_count >= self.max_iterations
+        if self.last_performance is not None and (current_performance < self.last_performance * 0.98):
             # print("self.iteration_count: ", self.iteration_count)
             done = True
         else:
@@ -123,6 +125,7 @@ class CNNTuningEnvironment:
         # 返回新的状态（在本例中，状态可能不直接依赖于动作），奖励和是否结束
         return np.array([kernel_idx, fc_layer_idx, dropout_idx, batch_size_idx, lr_idx, momentum_idx]), reward, done
 
+    # 使用act()方法选择动作后，调用step()方法执行动作(修改超参数)并获取下一个状态和奖励，这里是训练模型并获取性能
     def train_and_evaluate_model(self, conv_kernel_size, fc_layer_size, dropout_rate, batch_size, learning_rate, momentum_rate):
         # print(
         #     f"Training with params - Conv kernel size: {conv_kernel_size}, FC layer size: {fc_layer_size}, Dropout rate: {dropout_rate}, Batch size: {batch_size}, Learning rate: {learning_rate}, Momentum: {momentum_rate}")
@@ -152,7 +155,8 @@ class CNNTuningEnvironment:
 
         # 训练过程
         model.train()
-        for epoch in range(5):
+        # 这个循环表示训练过程将遍历整个数据集5次。
+        for epoch in range(15):
             for batch_idx, (data, target) in enumerate(train_loader):
                 data, target = data.to(torch.device("cuda" if torch.cuda.is_available() else "cpu")), target.to(
                     torch.device("cuda" if torch.cuda.is_available() else "cpu"))
@@ -183,7 +187,7 @@ class CNNTuningEnvironment:
             self.best_hyperparams = {'conv_kernel_size': conv_kernel_size, 'fc_layer_size': fc_layer_size, 'dropout_rate': dropout_rate,
                                     'batch_size': batch_size, 'learning_rate': learning_rate, 'momentum_rate': momentum_rate}
 
-        return accuracy, self.best_accuracy, self.best_hyperparams
+        return accuracy
 
     def reset(self):
         # 这里假设返回的是随机选择的初始状态
