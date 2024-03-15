@@ -35,6 +35,7 @@ def train_dqn(episode_count):
         # print(f"当前episode_count:{agent.episode_count}")
         env.iteration_count = 0  # 重置迭代计数
         state = env.reset()  # 确保这里返回的是正确形状的状态
+        print(f"last_performance:{env.last_performance}")
 
         for iteration in range(max_iterations):  # 每个episode的时间步数
             action = agent.act(state)  # 选择动作

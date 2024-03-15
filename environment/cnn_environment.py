@@ -198,4 +198,5 @@ class CNNTuningEnvironment:
                           np.random.randint(self.num_batch_size_options),
                           np.random.randint(self.num_lr_options),
                           np.random.randint(self.num_momentum_options)])
+        self.last_performance = None  # 重置上一次的性能
         return state
