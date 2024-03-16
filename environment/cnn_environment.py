@@ -7,12 +7,12 @@ import numpy as np
 import torch.nn as nn
 
 # from train import print_and_save
-from utils.hyperparameters import CONV_KERNEL_SIZES, DROPOUT_RATES, LEARNING_RATE_STEPS
+from utils.hyperparameters import CONV_KERNEL_SIZES, DROPOUT_RATES, LEARNING_RATES
 
 best_accuracy_global = 0
 best_hyperparams_global = {}
 
-file_path = "dqn_cnn_tuning_log2.txt"
+file_path = "dqn_cnn_tuning_log.txt"
 
 def print_and_save(text, file_path):
     print(text)
@@ -38,23 +38,35 @@ class CNNTuningEnvironment:
         self.num_momentum_options = len(self.momentums)
 
         # 数据加载
-        self.train_loader = DataLoader(datasets.MNIST('data', train=True, download=True,
-                                                       transform=transforms.Compose([
-                                                           transforms.ToTensor(),
-                                                           transforms.Normalize((0.1307,), (0.3081,))
-                                                       ])),
+        # self.train_loader = DataLoader(datasets.MNIST('data', train=True, download=True,
+        #                                                transform=transforms.Compose([
+        #                                                    transforms.ToTensor(),
+        #                                                    transforms.Normalize((0.1307,), (0.3081,))
+        #                                                ])),
+        #                                batch_size=64, shuffle=True)
+        # self.test_loader = DataLoader(datasets.MNIST('data', train=False,
+        #                                              transform=transforms.Compose([
+        #                                                  transforms.ToTensor(),
+        #                                                  transforms.Normalize((0.1307,), (0.3081,))
+        #                                              ])),
+        #                               batch_size=1000, shuffle=True)
+        # 数据加载，这里使用Fashion MNIST数据集
+        self.train_loader = DataLoader(datasets.FashionMNIST('../data', train=True, download=True,
+                                                             transform=transforms.Compose([
+                                                                 transforms.ToTensor(),
+                                                                 transforms.Normalize((0.5,), (0.5,))
+                                                             ])),
                                        batch_size=64, shuffle=True)
-        self.test_loader = DataLoader(datasets.MNIST('data', train=False,
-                                                     transform=transforms.Compose([
-                                                         transforms.ToTensor(),
-                                                         transforms.Normalize((0.1307,), (0.3081,))
-                                                     ])),
+        self.test_loader = DataLoader(datasets.FashionMNIST('../data', train=False,
+                                                            transform=transforms.Compose([
+                                                                transforms.ToTensor(),
+                                                                transforms.Normalize((0.5,), (0.5,))
+                                                            ])),
                                       batch_size=1000, shuffle=True)
+
         # 初始化上一次的性能
         self.last_performance = None  # 上一次的性能初始化为None
         self.last_hyperparams = None
-        # self.max_iterations = 50  # 最大迭代次
-        # self.iteration_count = 0  # 初始化迭代计数为0
         self.best_accuracy = 0  # 初始化最佳准确率
         self.best_hyperparams = {}  # 初始化最佳超参数
 
@@ -95,9 +107,6 @@ class CNNTuningEnvironment:
 
         # 使用解码的超参数值配置和训练模型
         current_performance = self.train_and_evaluate_model(conv_kernel_size, fc_layer_size, dropout_rate, batch_size, learning_rate, momentum_rate)
-        # current_performance = current_performance_tuple[0]
-        # best_accuracy_global = current_performance_tuple[1]
-        # best_hyperparams_global = current_performance_tuple[2]
 
         # 如果是第一次运行，没有之前的性能可比较，可以选择给予中性或稍微正向的初始奖励
         if self.last_performance is None:
@@ -105,13 +114,6 @@ class CNNTuningEnvironment:
         else:
             reward = current_performance - self.last_performance  # 当前性能与上一次性能的差值作为奖励
 
-
-        # 更新迭代次数
-        # self.iteration_count += 1
-
-        # print_and_save(f"iteration_count: {self.iteration_count}", file_path)
-        # 判断是否达到终止条件，如果当前性能低于上一次的0.99倍，或者迭代次数达到最大值，则结束
-        # or self.iteration_count >= self.max_iterations
         if self.last_performance is not None and (current_performance < self.last_performance * 0.98):
             # print("self.iteration_count: ", self.iteration_count)
             done = True

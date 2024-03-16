@@ -1,7 +1,7 @@
 from environment.cnn_environment import CNNTuningEnvironment
 from agent.dqn_agent import DQNAgent
 import numpy as np
-from utils.hyperparameters import DROPOUT_RATES, CONV_KERNEL_SIZES, EPSILON_START
+from utils.hyperparameters import DROPOUT_RATES, CONV_KERNEL_SIZES, FC_NODES, BATCH_SIZES, LEARNING_RATES, MOMENTUMS
 import matplotlib.pyplot as plt
 import time as tm
 
@@ -16,6 +16,7 @@ def print_and_save(text, file_path):
 
 file_path = "dqn_cnn_tuning_log.txt"
 def train_dqn(episode_count):
+    n_actions = len(CONV_KERNEL_SIZES) * len(DROPOUT_RATES) * len(LEARNING_RATES) * len(FC_NODES) * len(BATCH_SIZES) * len(MOMENTUMS)
     n_actions = len(CONV_KERNEL_SIZES) * len(DROPOUT_RATES) * len(np.linspace(0.0001, 0.01, num=10)) * len([128, 256, 512, 1024]) * len([16, 32, 64, 128]) * len(np.linspace(0.5, 1, num=5))
     state_size = 6  # 假设包括kernel size index, fc_layer_size index, dropout rate index, batch size index, learning rate index, and momentum index
     agent = DQNAgent(state_size, n_actions)

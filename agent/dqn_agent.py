@@ -8,86 +8,12 @@ import torch.nn.functional as F
 
 # from train import print_and_save
 
-file_path = "dqn_cnn_tuning_log2.txt"
+file_path = "dqn_cnn_tuning_log.txt"
 
 def print_and_save(text, file_path):
     print(text)
     with open(file_path, "a") as file:
         file.write(text + "\n")
-
-# class DQNNetwork(nn.Module):
-#     def __init__(self, input_size, output_size=150, conv_kernel_sizes=[(3, 3)], fc_layer_sizes=[128, 64],
-#                  dropout_rate=0.5):
-#         super(DQNNetwork, self).__init__()
-#
-#         # 修改输入张量的尺寸
-#         print(f"输入尺寸: {input_size}")
-#
-#         # 卷积层定义
-#         self.conv_layers = nn.ModuleList()
-#         in_channels = input_size[0]  # 假设input_size包含通道数
-#         for idx, kernel_size in enumerate(conv_kernel_sizes):
-#             out_channels = 32 * (2 ** idx)
-#             self.conv_layers.append(nn.Conv2d(in_channels, out_channels, kernel_size=kernel_size, padding=1))
-#             in_channels = out_channels
-#         print(f"1self.conv_layers: {self.conv_layers}")
-#
-#         # 全连接层定义
-#         self.fc_layers = nn.ModuleList()
-#         num_features = self._get_conv_output(input_size)
-#         for out_features in fc_layer_sizes:
-#             self.fc_layers.append(nn.Linear(num_features, out_features))
-#             num_features = out_features
-#
-#         # Dropout层
-#         self.dropout = nn.Dropout(dropout_rate)
-#
-#         # 输出层
-#         self.out = nn.Linear(fc_layer_sizes[-1], output_size)
-#
-#     def forward(self, x):
-#         print(f"forward输入尺寸: {x.size()}")
-#         # 应用卷积层和激活函数
-#         for conv_layer in self.conv_layers:
-#             x = F.relu(conv_layer(x))
-#             print(f"卷积层输出尺寸: {x.size()}")
-#             # 检查是否适合池化
-#             if x.dim() > 3 and x.size(2) > 1 and x.size(3) > 1:  # 确保x具有至少4个维度
-#                 x = F.max_pool2d(x, kernel_size=2)  # 示例使用2x2的最大池化
-#                 print(f"池化层输出尺寸: {x.size()}")
-#             else:
-#                 print("跳过池化层，因为尺寸太小或维度不足")
-#
-#         print(f"卷积层和池化层输出尺寸: {x.size()}")
-#         # 准备进入全连接层
-#         x = torch.flatten(x, 1)  # 展平除批次维度外的所有维度
-#
-#         print("self.fc_layers: ", self.fc_layers)
-#         # 应用全连接层和Dropoutssh -p 32756 root@region-41.seetacloud.com
-#         for fc_layer in self.fc_layers:
-#             # 线性层
-#             x = F.relu(fc_layer(x))
-#             x = self.dropout(x)
-#
-#         # 应用输出层
-#         x = self.out(x)
-#         print_and_save(f"Model output shape before squeeze: {x.size()}", file_path)
-#         return x
-#
-#     def _get_conv_output(self, shape):
-#         bs = 1
-#         input = torch.autograd.Variable(torch.rand(bs, *shape))
-#         output_feat = self._forward_features(input)
-#         n_size = output_feat.data.view(bs, -1).size(1)
-#         print(f"get_conv_output全连接层输入尺寸: {n_size}")
-#         return n_size
-#
-#     def _forward_features(self, x):
-#         for conv_layer in self.conv_layers:
-#             x = F.relu(conv_layer(x))
-#             x = F.max_pool2d(x, kernel_size=2)
-#             print(f"forward_features卷积层输出尺寸: {x.size()}")
-#         return x
 
 class DQNNetwork(nn.Module):
     def __init__(self):
@@ -145,7 +71,6 @@ class DQNAgent:
         self.epsilon_decay = epsilon_decay
         self.batch_size = batch_size
         self.momentum = momentum
-        # self.train_steps = 0  # 初始化训练次数为0
         # self.model = DQNNetwork(input_size=(1, 28, 28),  # 假定的输入尺寸，需要根据实际情况调整
         #                         output_size=action_size,
         #                         conv_kernel_sizes=conv_kernel_sizes,
@@ -272,7 +197,6 @@ class DQNAgent:
             'optimizer': self.optimizer.state_dict(),
             'scheduler': self.scheduler.state_dict(),
             'memory': self.memory,
-            # 'train_steps': self.train_steps,
             'epsilon': self.epsilon,
             'episode_count': self.episode_count,
             'best_accuracy': self.best_accuracy,  # 保存最佳准确率
@@ -291,7 +215,6 @@ class DQNAgent:
             self.optimizer.load_state_dict(checkpoint['optimizer'])
             self.scheduler.load_state_dict(checkpoint['scheduler'])
             self.memory = checkpoint['memory']
-            # self.train_steps = checkpoint.get('train_steps', 0)
             self.epsilon = checkpoint.get('epsilon', 1.0)  # 加载epsilon
             self.episode_count = checkpoint.get('episode_count', 0)  # 加载episode_count
             self.best_accuracy = checkpoint.get('best_accuracy', 0)
