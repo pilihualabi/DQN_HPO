@@ -1,23 +1,36 @@
+import time
 import torch
 import torch.optim as optim
 from torchvision import datasets, transforms
 from torch.utils.data import DataLoader
-from model.cnn_model import CNNModel
+from model.cnn_model import CNNModel  # 确保您的CNNModel适用于CIFAR-10数据
 import numpy as np
 import torch.nn as nn
+from sklearn.metrics import precision_recall_fscore_support
+import csv
+import os
 
-# from train import print_and_save
 from utils.hyperparameters import CONV_KERNEL_SIZES, DROPOUT_RATES, LEARNING_RATES
 
 best_accuracy_global = 0
 best_hyperparams_global = {}
 
-file_path = "dqn_cnn_tuning_log.txt"
+file_path = "dqn_cifar1.txt"
 
 def print_and_save(text, file_path):
     print(text)
     with open(file_path, "a") as file:
         file.write(text + "\n")
+
+
+def save_metrics_to_file(file_path, metrics):
+    # 检查文件是否已存在，若不存在则添加标题行
+    file_exists = os.path.isfile(file_path)
+    with open(file_path, 'a', newline='') as file:
+        writer = csv.writer(file)
+        if not file_exists:
+            writer.writerow(['Accuracy', 'F1 Score', 'Precision', 'Recall', 'Training Time (s)', 'Evaluation Time (s)'])
+        writer.writerow(metrics)
 
 class CNNTuningEnvironment:
     def __init__(self):
@@ -27,9 +40,9 @@ class CNNTuningEnvironment:
         self.dropout_rates = [0.3, 0.4, 0.5, 0.6, 0.7]
         self.batch_sizes = [16, 32, 64, 128]
         self.learning_rates = np.linspace(0.0001, 0.01, num=10)  # 可以根据需要调整num的值
-        self.momentums = np.linspace(0.5, 1, num=5)  # 同上
+        self.momentums = np.linspace(0.4, 0.9, num=5)  # 同上
 
-        # 添加缺失的属性定义
+        # 更新属性定义以匹配超参数空间
         self.num_kernel_options = len(self.conv_kernel_sizes)
         self.num_fc_layer_options = len(self.fc_layer_sizes)
         self.num_dropout_options = len(self.dropout_rates)
@@ -37,38 +50,33 @@ class CNNTuningEnvironment:
         self.num_lr_options = len(self.learning_rates)
         self.num_momentum_options = len(self.momentums)
 
-        # 数据加载
-        # self.train_loader = DataLoader(datasets.MNIST('data', train=True, download=True,
-        #                                                transform=transforms.Compose([
-        #                                                    transforms.ToTensor(),
-        #                                                    transforms.Normalize((0.1307,), (0.3081,))
-        #                                                ])),
+        # self.train_loader = DataLoader(datasets.FashionMNIST('../data', train=True, download=True,
+        #                                                      transform=transforms.Compose([
+        #                                                          transforms.ToTensor(),
+        #                                                          transforms.Normalize((0.5,), (0.5,))
+        #                                                      ])),
         #                                batch_size=64, shuffle=True)
-        # self.test_loader = DataLoader(datasets.MNIST('data', train=False,
-        #                                              transform=transforms.Compose([
-        #                                                  transforms.ToTensor(),
-        #                                                  transforms.Normalize((0.1307,), (0.3081,))
-        #                                              ])),
+        # self.test_loader = DataLoader(datasets.FashionMNIST('../data', train=False,
+        #                                                     transform=transforms.Compose([
+        #                                                         transforms.ToTensor(),
+        #                                                         transforms.Normalize((0.5,), (0.5,))
+        #                                                     ])),
         #                               batch_size=1000, shuffle=True)
-        # 数据加载，这里使用Fashion MNIST数据集
-        self.train_loader = DataLoader(datasets.FashionMNIST('../data', train=True, download=True,
-                                                             transform=transforms.Compose([
-                                                                 transforms.ToTensor(),
-                                                                 transforms.Normalize((0.5,), (0.5,))
-                                                             ])),
-                                       batch_size=64, shuffle=True)
-        self.test_loader = DataLoader(datasets.FashionMNIST('../data', train=False,
-                                                            transform=transforms.Compose([
-                                                                transforms.ToTensor(),
-                                                                transforms.Normalize((0.5,), (0.5,))
-                                                            ])),
-                                      batch_size=1000, shuffle=True)
 
-        # 初始化上一次的性能
-        self.last_performance = None  # 上一次的性能初始化为None
+        # 数据加载，使用CIFAR-10数据集
+        transform = transforms.Compose([
+            transforms.ToTensor(),
+            transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))  # CIFAR-10 normalization
+        ])
+        self.train_loader = DataLoader(datasets.CIFAR10('../data', train=True, download=True, transform=transform),
+                                       batch_size=64, shuffle=True)
+        self.test_loader = DataLoader(datasets.CIFAR10('../data', train=False, transform=transform),
+                                      batch_size=1000, shuffle=False)
+        # 初始化性能和超参数
+        self.last_performance = None
         self.last_hyperparams = None
-        self.best_accuracy = 0  # 初始化最佳准确率
-        self.best_hyperparams = {}  # 初始化最佳超参数
+        self.best_accuracy = 0
+        self.best_hyperparams = {}
 
     def step(self, action):
         # 计算超参数索引
@@ -135,20 +143,33 @@ class CNNTuningEnvironment:
         global best_accuracy_global
         global best_hyperparams_global
         # 数据准备
+#         transform = transforms.Compose([
+#             transforms.ToTensor(),
+#             transforms.Normalize((0.1307,), (0.3081,))
+#         ])
+#         train_dataset = datasets.FashionMNIST(root='..data', train=True, download=True, transform=transform)
+#         test_dataset = datasets.FashionMNIST(root='../data', train=False, download=True, transform=transform)
+
+
+#         train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
+#         test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)  # 或保留为一个大批量，具体取决于你的评估需
+        # 数据准备
         transform = transforms.Compose([
             transforms.ToTensor(),
-            transforms.Normalize((0.1307,), (0.3081,))
+            transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))  # CIFAR-10 normalization
         ])
-        train_dataset = datasets.MNIST(root='data', train=True, download=True, transform=transform)
-        test_dataset = datasets.MNIST(root='data', train=False, download=True, transform=transform)
+        train_dataset = datasets.CIFAR10(root='../data', train=True, download=True, transform=transform)
+        test_dataset = datasets.CIFAR10(root='../data', train=False, download=True, transform=transform)
 
         train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
-        test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)  # 或保留为一个大批量，具体取决于你的评估需要
+        test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
 
         # 模型定义
         model = CNNModel(conv_kernel_sizes=[conv_kernel_size, conv_kernel_size], fc_layer_sizes=[fc_layer_size],
                          dropout_rates=[dropout_rate])
         model.to(torch.device("cuda" if torch.cuda.is_available() else "cpu"))
+
+        start_train_time = time.time()  # 记录训练开始时间
 
         # 损失函数和优化器
         criterion = nn.CrossEntropyLoss()
@@ -168,21 +189,49 @@ class CNNTuningEnvironment:
                 loss.backward()
                 optimizer.step()
 
+        end_train_time = time.time()  # 记录训练结束时间
+        train_time = end_train_time - start_train_time  # 计算训练时间
+
+        start_eval_time = time.time()  # 记录评估开始时间
+
         # 评估过程
         model.eval()
+        all_preds = []
+        all_targets = []
         correct = 0
+        # with torch.no_grad():
+        #     for data, target in test_loader:
+        #         data, target = data.to(torch.device("cuda" if torch.cuda.is_available() else "cpu")), target.to(
+        #             torch.device("cuda" if torch.cuda.is_available() else "cpu"))
+        #         # device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        #         # print(f"Using device: {device}")
+        #         output = model(data)
+        #         # print(f"Model output shape: {output.size()}, Target shape: {target.size()}")
+        #         pred = output.argmax(dim=1)  # 移除keepdim=True使pred变为一维
+        #         correct += pred.eq(target.view(-1)).sum().item()
+
         with torch.no_grad():
             for data, target in test_loader:
                 data, target = data.to(torch.device("cuda" if torch.cuda.is_available() else "cpu")), target.to(
                     torch.device("cuda" if torch.cuda.is_available() else "cpu"))
-                # device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-                # print(f"Using device: {device}")
                 output = model(data)
-                # print(f"Model output shape: {output.size()}, Target shape: {target.size()}")
-                pred = output.argmax(dim=1)  # 移除keepdim=True使pred变为一维
+                pred = output.argmax(dim=1)
+                all_preds.extend(pred.tolist())
+                all_targets.extend(target.tolist())
                 correct += pred.eq(target.view(-1)).sum().item()
 
+        end_eval_time = time.time()  # 记录评估结束时间
+        eval_time = end_eval_time - start_eval_time  # 计算评估时间
+
         accuracy = correct / len(test_loader.dataset)
+        precision, recall, f1_score, _ = precision_recall_fscore_support(all_targets, all_preds, average='macro')
+
+        print_and_save(
+            f"Training time: {train_time}s, Evaluation time: {eval_time}s, F1 Score: {f1_score}, Precision: {precision}, Recall: {recall}",
+            file_path)
+
+        metrics = [accuracy, f1_score, precision, recall, train_time, eval_time]
+        save_metrics_to_file('evaluation_metrics.csv', metrics)
 
         if accuracy > self.best_accuracy:
             self.best_accuracy = accuracy

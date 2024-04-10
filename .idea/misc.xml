@@ -3,5 +3,5 @@
   <component name="Black">
     <option name="sdkName" value="Python 3.9" />
   </component>
-  <component name="ProjectRootManager" version="2" project-jdk-name="Remote Python 3.8.10 (sftp://root@region-41.seetacloud.com:32756/root/.virtualenvs/DQN_HPO/bin/python) (4)" project-jdk-type="Python SDK" />
+  <component name="ProjectRootManager" version="2" project-jdk-name="Remote Python 3.8.10 (sftp://root@region-41.seetacloud.com:32756/root/.virtualenvs/DQN_HPO_CIFAR/bin/python) (7)" project-jdk-type="Python SDK" />
 </project>

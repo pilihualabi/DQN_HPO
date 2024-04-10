@@ -8,12 +8,14 @@ import torch.nn.functional as F
 
 # from train import print_and_save
 
-file_path = "dqn_cnn_tuning_log.txt"
+file_path = "dqn_cifar1.txt"
+
 
 def print_and_save(text, file_path):
     print(text)
     with open(file_path, "a") as file:
         file.write(text + "\n")
+
 
 class DQNNetwork(nn.Module):
     def __init__(self):
@@ -60,7 +62,8 @@ class DQNNetwork(nn.Module):
 
 class DQNAgent:
     def __init__(self, state_size, action_size, learning_rate=0.001, gamma=0.99, epsilon=1.0, epsilon_min=0.01,
-                     epsilon_decay=0.995, conv_kernel_sizes=[(3, 3)], fc_layer_sizes=[128, 64], dropout_rate=0.5, batch_size=64, momentum=0.9):
+                 epsilon_decay=0.995, conv_kernel_sizes=[(3, 3)], fc_layer_sizes=[128, 64], dropout_rate=0.5,
+                 batch_size=32, momentum=0.9):
         self.state_size = state_size
         self.action_size = action_size
         self.memory = []
@@ -71,29 +74,29 @@ class DQNAgent:
         self.epsilon_decay = epsilon_decay
         self.batch_size = batch_size
         self.momentum = momentum
-        # self.model = DQNNetwork(input_size=(1, 28, 28),  # 假定的输入尺寸，需要根据实际情况调整
-        #                         output_size=action_size,
-        #                         conv_kernel_sizes=conv_kernel_sizes,
-        #                         fc_layer_sizes=fc_layer_sizes,
-        #                         dropout_rate=dropout_rate)
-        self.model = DQNNetwork()
-        self.optimizer = optim.SGD(self.model.parameters(), lr=self.learning_rate, momentum=self.momentum)
+
+        self.eval_network = DQNNetwork()
+        self.target_network = DQNNetwork()
+        self.target_network.load_state_dict(self.eval_network.state_dict())
+        self.target_network.eval()
+        self.optimizer = optim.SGD(self.eval_network.parameters(), lr=learning_rate, momentum=momentum)
         self.scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, step_size=100, gamma=0.1)
         # print(f"DQNNetwork output size: {self.model.out.out_features}")
         self.best_accuracy = 0  # 初始化最佳准确率
         self.best_hyperparams = {}
+        self.step_done = 0
+        self.target_update = 10
 
-    #remember方法用于存储经验
+    # remember方法用于存储经验
     def remember(self, state, action, reward, next_state, done):
+        print(f"State shape: {np.array(state).shape}")  # 添加打印语句来检查状态的形状
         self.memory.append((state, action, reward, next_state, done))
 
-    #act方法用于选择动作
+    # act方法用于选择动作
     def act(self, state):
-        # self.train_steps += 1
         # 探索，随机选择动作
         if np.random.rand() <= self.epsilon:
             print_and_save(f"Random action range: 0 to {self.action_size - 1}", file_path)
-            # print(f"Random action range: 0 to {self.action_size - 1}")
             return random.randrange(self.action_size)  # 确保这里不会选择超出范围的动作
         # 利用模型预测动作
         else:
@@ -104,12 +107,10 @@ class DQNAgent:
             elif state.ndim == 2:
                 # 如果已经是二维的，直接转换
                 state = torch.tensor(state).long()
-            act_values = self.model(state) # 获取模型输出
+            act_values = self.eval_network(state)
             print(f"act_values 的值: {act_values}")
             action = torch.argmax(act_values, axis=1).item()  # 获取最大值的索引
-            # 返回的action应该是一个在0到action_size-1之间的整数
             print_and_save(f"Predicted action: {action}", file_path)
-            # print(f"Predicted action: {action}")
             return action
 
     # replay方法用于训练模型
@@ -118,21 +119,36 @@ class DQNAgent:
             return
         # 从记忆中随机抽取一批经验
         minibatch = random.sample(self.memory, self.batch_size)
-        # minibatch = random.sample(self.memory, batch_size)
+        #         # print(f"Sampled state shape: {np.array([t[0] for t in minibatch]).shape}")
+        #         for state, action, reward, next_state, done in minibatch:
+        #             print(f"States array shape before tensor conversion: {states.shape}")
+        #             states = torch.tensor([t[0] for t in minibatch]).long()
+        #             actions = torch.tensor([t[1] for t in minibatch]).long().unsqueeze(1)  # 添加额外的维度以便后续使用gather
+        #             rewards = torch.tensor([t[2] for t in minibatch])
+        #             next_states = torch.tensor([t[3] for t in minibatch]).long()
+        #             dones = torch.tensor([t[4] for t in minibatch])
+
+        #             if not done:
+        #                 target = reward + self.gamma * torch.max(self.target_network(next_state).detach())
+        #             else:
+        #                 target = reward
+
+        #             # 使用eval网络预测当前状态的Q值
+        #             current_q_values = self.eval_network(states).gather(1, actions)
+
+        #             # 使用target网络预测下一个状态的Q值
+        #             next_q_values = self.target_network(next_states).max(1)[0].detach()
+        #             targets = rewards + (self.gamma * next_q_values * (1 - dones))
+        #             # 计算MSE损失
+        #             loss = F.mse_loss(current_q_values, target)
         for state, action, reward, next_state, done in minibatch:
-            # print(f"state: {state}")
-            # 计算目标值
-            target = reward
             # 判断是否到达终止态，如果没有到达终止态，需要计算目标值，如果到达终止态，目标值就是reward
             if not done:
-                # print(f"action1: {action}")
-                # print(f"next_state : {next_state}")
                 next_state = torch.tensor(next_state).long()
-                # next_state = torch.FloatTensor(next_state).unsqueeze(0)
-                # print(f"next_state : {next_state}")
-                # 使用target=reward+γ×maxQ(s',a')来计算目标值
-                target = (reward + self.gamma * torch.max(self.model(next_state))).item()
-                # print(f"target: {target}")
+                # 这里使用目标网络来计算目标Q值
+                target = reward + self.gamma * torch.max(self.target_network(next_state)).item()
+            else:
+                target = reward
 
             # 将state值转换为能够输入模型的张量
             if state.ndim == 1:
@@ -142,24 +158,20 @@ class DQNAgent:
                 # 如果已经是二维的，直接转换
                 state = torch.tensor(state).long()
 
-            # state = torch.FloatTensor(state).unsqueeze(0)
-            # state = torch.tensor(state).long().unsqueeze(0)
-            # print(f"state: {state}")
+            # 获取当前状态的预测值
+            current_q_values = self.eval_network(state)
 
-            # 计算当前状态的预测值，预测值的形状是
-            target_f = self.model(state)
-
-            # print(f"target_f: {target_f}")
-            # print(f"target: {target}")
-
-            # 创建一个目标Q值Tensor，其初始值为target_f的副本
-            target_q_values = target_f.clone().detach()
-
-            # 更新对应于实际采取的动作的Q值为计算出的target值
+            # 创建与current_q_values形状相同的target_q_values张量
+            target_q_values = current_q_values.clone()
+            # 更新执行的动作对应的Q值
             target_q_values[0, action] = target
 
-            # 计算损失，这次是target_f和新的目标Q值Tensor之间的差异
-            loss = nn.MSELoss()(target_f, target_q_values)
+            #             print(f"current_q_values shape: {current_q_values.shape}")
+            #             print(f"target:{target}")
+            # print(f"target shape: {target.shape}")
+
+            # 计算损失
+            loss = nn.MSELoss()(current_q_values, target_q_values)
 
             # 梯度清零
             self.optimizer.zero_grad()
@@ -169,23 +181,18 @@ class DQNAgent:
 
             # 更新模型权重
             self.optimizer.step()
-            # self.optimizer.zero_grad()
-            # # print(f"state size: {state.size()}")
-            # loss = nn.MSELoss()(target_f, self.model(state))
-            # # print(f"loss size: {loss.size()}")
-            # loss.backward()
-            # # print(f"loss size after backward: {loss.size()}")
-            # self.optimizer.step()
+
         self.scheduler.step()
+        self.step_done += 1
         # print("判断是否需要衰减epsilon前的epsilon值:", self.epsilon)
         if self.epsilon > self.epsilon_min:
             self.epsilon *= self.epsilon_decay
-            # print_and_save("进行了epsilon衰减", file_path)
-            # print("进行了epsilon衰减")
-        # else:
-        #     print("epsilon已经低于最小值，不再进行衰减")
+        # 根据一定步数更新目标网络
+        if self.step_done % self.target_update == 0:
+            self.target_network.load_state_dict(self.eval_network.state_dict())
         print_and_save(f"当前epsilon值:{self.epsilon}", file_path)
 
+        return loss.item()
 
     def save(self, filepath):
         save_dir = os.path.dirname(filepath)
@@ -193,7 +200,7 @@ class DQNAgent:
             os.makedirs(save_dir)
 
         state = {
-            'state_dict': self.model.state_dict(),
+            'state_dict': self.eval_network.state_dict(),
             'optimizer': self.optimizer.state_dict(),
             'scheduler': self.scheduler.state_dict(),
             'memory': self.memory,
@@ -211,7 +218,7 @@ class DQNAgent:
         if os.path.isfile(filepath):
             checkpoint = torch.load(filepath)
 
-            self.model.load_state_dict(checkpoint['state_dict'])
+            self.eval_network.load_state_dict(checkpoint['state_dict'])
             self.optimizer.load_state_dict(checkpoint['optimizer'])
             self.scheduler.load_state_dict(checkpoint['scheduler'])
             self.memory = checkpoint['memory']

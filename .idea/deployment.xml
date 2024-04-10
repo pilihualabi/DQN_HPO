@@ -1,7 +1,56 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
-  <component name="PublishConfigData" autoUpload="Always" serverName="root@region-41.seetacloud.com:32756 password (8)" remoteFilesAllowedToDisappearOnAutoupload="false">
+  <component name="PublishConfigData" autoUpload="Always" serverName="root@region-41.seetacloud.com:32756 password (18)" remoteFilesAllowedToDisappearOnAutoupload="false">
     <serverData>
+      <paths name="root@region-41.seetacloud.com:32756 password (10)">
+        <serverdata>
+          <mappings>
+            <mapping deploy="/root/autodl-tmp/DQN_ALL_CIFAR" local="$PROJECT_DIR$" />
+          </mappings>
+        </serverdata>
+      </paths>
+      <paths name="root@region-41.seetacloud.com:32756 password (12)">
+        <serverdata>
+          <mappings>
+            <mapping deploy="/root/autodl-tmp/DQN_ALL_CIFAR" local="$PROJECT_DIR$" />
+          </mappings>
+        </serverdata>
+      </paths>
+      <paths name="root@region-41.seetacloud.com:32756 password (13)">
+        <serverdata>
+          <mappings>
+            <mapping deploy="/root/autodl-tmp/DQN_ALL_CIFAR" local="$PROJECT_DIR$" />
+          </mappings>
+        </serverdata>
+      </paths>
+      <paths name="root@region-41.seetacloud.com:32756 password (14)">
+        <serverdata>
+          <mappings>
+            <mapping deploy="/root/autodl-tmp/DQN_ALL_CIFAR" local="$PROJECT_DIR$" />
+          </mappings>
+        </serverdata>
+      </paths>
+      <paths name="root@region-41.seetacloud.com:32756 password (16)">
+        <serverdata>
+          <mappings>
+            <mapping deploy="/root/autodl-tmp/DQN2" local="$PROJECT_DIR$" />
+          </mappings>
+        </serverdata>
+      </paths>
+      <paths name="root@region-41.seetacloud.com:32756 password (17)">
+        <serverdata>
+          <mappings>
+            <mapping deploy="/root/autodl-tmp/DQN_mnist" local="$PROJECT_DIR$" />
+          </mappings>
+        </serverdata>
+      </paths>
+      <paths name="root@region-41.seetacloud.com:32756 password (18)">
+        <serverdata>
+          <mappings>
+            <mapping deploy="/root/autodl-tmp/DQN_mnist" local="$PROJECT_DIR$" />
+          </mappings>
+        </serverdata>
+      </paths>
       <paths name="root@region-41.seetacloud.com:32756 password (4)">
         <serverdata>
           <mappings>

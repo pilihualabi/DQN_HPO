@@ -6,21 +6,20 @@ import matplotlib.pyplot as plt
 import time as tm
 
 accuracy_per_episode = []  # 存储每个episode的最佳准确率
-time_per_episode = []  # 存储每个episode的时间（可以用秒或分钟等单位）
-start_time = tm.time()
+losses = []  # 在训练循环开始前初始化损失记录列表
 
 def print_and_save(text, file_path):
     print(text)
     with open(file_path, "a") as file:
         file.write(text + "\n")
 
-file_path = "dqn_cnn_tuning_log.txt"
+file_path = "dqn_cifar1.txt"
 def train_dqn(episode_count):
     n_actions = len(CONV_KERNEL_SIZES) * len(DROPOUT_RATES) * len(LEARNING_RATES) * len(FC_NODES) * len(BATCH_SIZES) * len(MOMENTUMS)
-    n_actions = len(CONV_KERNEL_SIZES) * len(DROPOUT_RATES) * len(np.linspace(0.0001, 0.01, num=10)) * len([128, 256, 512, 1024]) * len([16, 32, 64, 128]) * len(np.linspace(0.5, 1, num=5))
+    # n_actions = len(CONV_KERNEL_SIZES) * len(DROPOUT_RATES) * len(np.linspace(0.0001, 0.01, num=10)) * len([128, 256, 512, 1024]) * len([16, 32, 64, 128]) * len(np.linspace(0.5, 1, num=5))
     state_size = 6  # 假设包括kernel size index, fc_layer_size index, dropout rate index, batch size index, learning rate index, and momentum index
     agent = DQNAgent(state_size, n_actions)
-    start_episode, start_accuracy, start_hyperparams, epsilon = agent.load("save/dqn_cnn_tuning_0.pt")  # 替换成你之前保存的模型路径
+    start_episode, start_accuracy, start_hyperparams, epsilon = agent.load("save/dqn_cnn_tuning_10.pt")  # 替换成你之前保存的模型路径
     # start_episode, start_accuracy, start_hyperparams, epsilon = 0, 0, {}, 1.0
     env = CNNTuningEnvironment()
     env.best_accuracy = start_accuracy
@@ -50,8 +49,8 @@ def train_dqn(episode_count):
             agent.remember(state, action, reward, next_state, done)  # 记住状态、动作、奖励、下一个状态和是否结束
             state = next_state
 
-            print("len(agent.memory):", len(agent.memory))
-            print("agent.batch_size:", agent.batch_size)
+            print_and_save(f"len(agent.memory):{len(agent.memory)}", file_path)
+            print_and_save(f"agent.batch_size:{agent.batch_size}", file_path)
             # 执行动作后，打印当前准确率和最佳准确率以及最佳超参数
             print_and_save(f"当前准确率: {env.last_performance}", file_path)
             print_and_save(f"当前模型状态: {env.last_hyperparams}", file_path)
@@ -64,10 +63,6 @@ def train_dqn(episode_count):
 
             accuracy_per_episode.append(env.best_accuracy)  # 将最佳准确率添加到列表中
 
-            # 计算当前episode结束时的累积时间（以秒为单位）
-            elapsed_time = tm.time() - start_time
-            time_per_episode.append(elapsed_time)
-
             if done:
                 print_and_save("_____________________________________________________________", file_path)
                 print_and_save("episode: {}/{}, 在第{}次迭代时终止, epsilon: {:.2}".format(e, episode_count, iteration + 1, agent.epsilon), file_path)
@@ -78,34 +73,32 @@ def train_dqn(episode_count):
             # print(f"agent.model.state_dict()的第一个元素：{agent.model.state_dict()['fc1.weight'][0]}")
             # 学习：定期从经验回放池中抽取一批经验，并使用 DQNAgent 类的 replay 方法来更新网络参数。
             if len(agent.memory) > agent.batch_size:
-                print("调用replay方法", file_path)
+                print_and_save("调用replay方法", file_path)
                 # print("调用replay方法")
-                agent.replay()
+                loss = agent.replay()
+                losses.append(loss)  # 记录每个epoch的损失值
+                accuracy_per_episode.append(env.last_performance)  # 将最佳准确率添加到列表中
         if e % 2 == 0:
             agent.save("./save/dqn_cnn_tuning_{}.pt".format(e))
 
 if __name__ == "__main__":
-    max_iterations = 30  # 最大迭代次
+    max_iterations = 10  # 最大迭代次
     episode_count = 100  # episode的数量
     train_dqn(episode_count)
 
-    plt.figure(figsize=(10, 5))
-
-    plt.subplot(1, 2, 1)
-    plt.plot(accuracy_per_episode, label='Validation Accuracy')
-    plt.xlabel('Episode')
-    plt.ylabel('Accuracy')
-    plt.title('Validation Accuracy per Episode')
-    plt.legend()
-
-    plt.subplot(1, 2, 2)
-    plt.plot(time_per_episode, accuracy_per_episode, label='Accuracy over Time')
-    plt.xlabel('Time (seconds)')
-    plt.ylabel('Accuracy')
-    plt.title('Validation Accuracy over Time')
-    plt.legend()
-
+    plt.plot(accuracy_per_episode, marker='o', linestyle='-', color='b', label='Accuracy')  # 修改label为英文
+    plt.title('DQN CNN Hyperparameter Tuning')  # 将标题改为英文
+    plt.xlabel('Episode')  # X轴标签已经是英文，无需修改
+    plt.ylabel('Accuracy')  # Y轴标签已经是英文，无需修改
+    plt.legend()  # 因为已经添加了label参数，这里不会出现"No artists with labels found"的警告
     plt.tight_layout()
-    plt.savefig('validation_accuracy.png')
+    plt.savefig('accuracy.png')
     plt.show()
 
+    # 绘制损失曲线
+    plt.plot(losses)
+    plt.title('DQN Training Loss')
+    plt.xlabel('Epoch')
+    plt.ylabel('Loss')
+    plt.show()
+    plt.savefig('loss.png')
